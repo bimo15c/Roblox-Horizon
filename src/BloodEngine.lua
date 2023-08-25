@@ -1,5 +1,6 @@
 -- Written By: @Smileeiles
 -- Description: A blood engine system, can be used for anything other than a blood system if thats what you want.
+-- Version: V0.0.2
 
 --[[
 	HOW TO USE:
@@ -9,29 +10,21 @@
 			500, -- Limit: The maximum number of blood drips that can be active at once
 			true, -- RandomOffset: Whether to use random positions for the blood drips
 			0.5, -- Speed: The speed or velocity at which the blood drips fall
-			0.01 -- DripDelay: The delay between emitting blood drips,
+			0.01, -- DripDelay: The delay between emitting blood drips,
 			false, -- DripVisibile: Determines if the blood drip is visibile when emitted
-			true -- Bouncing: Whether to make the drip bounce sometimes or never
+			{} -- Filter: An array used to make the drips ignore certain parts (go through them, not interact with them)
 		}
-	
+
+		-- MODULES
 		local BloodEngine = require(PathToModule)
 		local BloodInstance = BloodEngine.new(table.unpack(DripSettings)) -- customize to whatever you want
-		
-		local _Random = Random.new()
+
+		-- TARGET
 		local Part = workspace.Part
-		
-		local Divider = 10
-		local Sprayed = Vector3.new(
-			_Random:NextNumber(-5, 10), 
-			_Random:NextNumber(-5, 10), 
-			_Random:NextNumber(-5, 10)
-		) / Divider
-		
+
 		-- Emits drips from a part in the workspace, emits 10 blood drips only in the front direction
+		-- Leave the direction nil if you want it to go in a random direction
 		BloodInstance:Emit(Part, Part.CFrame.LookVector, 10) -- also customize to whatever you want
-		
-		-- Emits drips from a part in the workspace, emits 10 blood drips around the part
-		BloodInstance:Emit(Part, Sprayed, 10)
 	```
 	
 	BRIEF EXPLANATION:
@@ -84,15 +77,12 @@ BloodEngine.__index = BloodEngine
 
 -- Base settings/constants
 local Constants = {
-	ServerRestriction = true, -- Disables the restriction from running the module on the server
 	RandomOffset = true, -- Makes the drip start from a random position based of the part's position
-	Bouncing = true, -- Enables bouncing, when the drip touches the ground, it may have a chance to bounce
 	DripVisible = false, -- Determines if the drip is visible when first emitted (NOT THE BLOOD POOL!!!!)
 	DripDelay = 0.01, -- The delay between each drip creation
 	Speed = 5, -- The minimum speed of the drip before it becomes a pool
 	Limit = 500, -- The limit of the blood drips
 	Distance = 1, -- The distance at which a blood drip will activate and become into a pool
-	BouncingDistance = 0.3 -- The distance used if the bouncing value was set to true
 }
 
 -- Custom made warn function, functions like the warn method but with extra unneccesary symbols
@@ -101,15 +91,13 @@ local function Warn(...)
 end
 
 -- USE ONLY IN CLIENTS, IT IS MUCH SMOOTHER THAN RUNNING IT ON SERVER
-if (IsServer and not Constants.ServerRestriction) then
-	Warn("Do not run the module on the server, if you wish to do so you can disable the ServerRestriction setting in the Constants table.")
-	
-	return
+if (IsServer) then
+	Warn("Do not run the module on the server. It may cause throttling and may lead to more weirder looking drips & pools.")
 end
 
 -- Used when making a new instance of the BloodEngine.
 -- Use to initialize and assign variables/values
-function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, DripDelay: number, DripVisible: boolean, Bouncing: boolean)
+function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, DripDelay: number, DripVisible: boolean, FilterInstances: {})
 	local self = setmetatable({}, BloodEngine)
 	
 	-- Creates a folder for drips if necessary
@@ -119,7 +107,7 @@ function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, Dr
 	-- Create and initialize the RaycastParams object outside of the function
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = {DripsFolder}
+	raycastParams.FilterDescendantsInstances = {DripsFolder, Unpack(FilterInstances)}
 	raycastParams.IgnoreWater = true
 	
 	-- Assign class variables
@@ -128,7 +116,6 @@ function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, Dr
 		Speed = Speed or Constants.Speed,
 		DripDelay = DripDelay or Constants.DripDelay,
 		RandomOffset = RandomOffset or Constants.RandomOffset,
-		Bouncing = Bouncing or Constants.Bouncing,
 		DripVisible = DripVisible or Constants.DripVisible
 	}
 		
@@ -138,11 +125,15 @@ function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, Dr
 	
 	-- Assign other variables
 	local Distance = Constants.Distance
-	local BouncingDistance = Constants.BouncingDistance
 	self._Random = Random.new()
 	
 	-- Connect a single function to the Heartbeat event of the RunService
 	RunService.Heartbeat:Connect(function()
+		-- If no drips exist, stop managing. Saves Performance.
+		if (#self.Drips <= 0) then
+			return
+		end
+		
 		-- Iterate over all drips in the drips table
 		for Index, DripArray in self.Drips do
 			-- Retreive information
@@ -152,11 +143,9 @@ function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, Dr
 				BasePart: BasePart,
 				IsPool: boolean = Unpack(DripArray)
 			
-			local FinalDistance = Bouncing and BouncingDistance or Distance
-			
 			
 			-- Perform a raycast from the position of the part in the direction of its velocity and find the closest part to the drip
-			local result = workspace:Raycast(DripInstance.Position, Vector3.new(0, -FinalDistance, 0), self.RaycastParams)
+			local result = workspace:Raycast(DripInstance.Position, Vector3.new(0, -Distance, 0), self.RaycastParams)
 
 			-- Check if the result is not nil and if the hit object is not the basePart
 			if DripInstance and result and result.Instance ~= BasePart and not IsPool then
@@ -199,7 +188,7 @@ function BloodEngine.new(Limit: number, RandomOffset: boolean, Speed: number, Dr
 		if #self.Drips > self.Settings.DripLimit then
 			-- Decrease the size and transparency of the part after a few seconds have passed
 			-- Then destroy and delete it from the blood parts dataset
-			local OldestDrip: MeshPart = table.remove(self.Drips, #self.Drips)
+			local OldestDrip: MeshPart? = table.remove(self.Drips, #self.Drips)
 			
 			local DefaultTweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad)
 			local DefaultTween = TweenService:Create(OldestDrip, DefaultTweenInfo, {Transparency = 1, Size = Vector3.new(0.01, 0.01, 0.01)})
@@ -241,16 +230,23 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 		
 		-- Play starting sound
 		RandomStart:Play()
-
+		
+		-- Assign direction
+		local FinalDirection = Direction or Vector3.new(
+			self._Random:NextNumber(-10, 10),
+			self._Random:NextNumber(-10, 10),
+			self._Random:NextNumber(-10, 10)
+		) / 11
+		
 		-- Apply a random velocity to the part
 		local LinearVelocity = Instance.new("VectorForce")
 		LinearVelocity.Attachment0 = Instance.new("Attachment", Drip)
-		LinearVelocity.Force = Direction * self.Settings.Speed
+		LinearVelocity.Force = FinalDirection * self.Settings.Speed
 		LinearVelocity.Parent = Drip
 		
 		-- Remove and Update stuff after a few seconds
 		task.delay(0.01, function()
-			Drip.CanCollide = true
+			Drip.CanCollide = false
 			LinearVelocity:Destroy()
 		end)
 		
