@@ -1,48 +1,32 @@
-### Installation
-Put the BloodEngine module wherever you want, preferably in ReplicatedStorage.
-The assets folder must be put in ReplicatedStorage, if you wish to put it anywhere else
-make sure you change the path to it in the BloodEngine module to avoid errors
-	
-You can replace the sounds with whatever you want and add whatever you need to add.
-If you can't find any good sounds, there's a folder you can download in the release tab of the repo.
+Usage
 
-### Usage
 To use Blood Engine, you need to require the module in your script and create a new instance of it. You can pass some arguments to the constructor to change the default settings of the system. For example:
 
 ```lua
 -- You can leave any of these values as nil, it'll use the default values
 local DripSettings = {
-  500, -- Limit: The maximum number of blood drips that can be active at once
-  true, -- RandomOffset: Whether to use random positions for the blood drips
-  0.5, -- Speed: The speed or velocity at which the blood drips fall
-  0.01 -- DripDelay: The delay between emitting blood drips,
-  false, -- DripVisibile: Determines if the blood drip is visibile when emitted
-  true -- Bouncing: Whether to make the drip bounce sometimes or never
+	500, -- Limit: The maximum number of blood drips that can be active at once
+	true, -- RandomOffset: Whether to use random positions for the blood drips
+	0.5, -- Speed: The speed or velocity at which the blood drips fall
+	0.01, -- DripDelay: The delay between emitting blood drips,
+	false, -- DripVisibile: Determines if the blood drip is visibile when emitted
+	{} -- Filter: An array used to make the drips ignore certain parts (go through them, not interact with them)
 }
 
+-- MODULES
 local BloodEngine = require(PathToModule)
-local BloodInstance = BloodEngine.new(table.unpack(DripSettings))
+local BloodInstance = BloodEngine.new(table.unpack(DripSettings)) -- customize to whatever you want
 ```
 
 Then, you can use the Emit method to create blood drips from a base part in a given direction with a given amount. For example:
 
 ```lua
--- customize to whatever you want
-local _Random = Random.new()
+-- TARGET
 local Part = workspace.Part
-local Divider = 10
-local Sprayed = Vector3.new(
-  _Random:NextNumber(-5, 10),
-  _Random:NextNumber(-5, 10),
-  _Random:NextNumber(-5, 10)
-) / Divider
 
 -- Emits drips from a part in the workspace, emits 10 blood drips only in the front direction
-BloodInstance:Emit(Part, Part.CFrame.LookVector, 10)
-
--- also customize to whatever you want
--- Emits drips from a part in the workspace, emits 10 blood drips around the part
-BloodInstance:Emit(Part, Sprayed, 10)
+-- Leave the direction nil if you want it to go in a random direction
+BloodInstance:Emit(Part, Part.CFrame.LookVector, 10) -- also customize to whatever you want
 ```
 
 You can also change the settings of the system after creating an instance by accessing its properties. For example:
