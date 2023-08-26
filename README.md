@@ -2,12 +2,6 @@
  <img alt="Logo" src="https://devforum-uploads.s3.dualstack.us-east-2.amazonaws.com/uploads/optimized/5X/7/3/3/2/73326251a8afb11d5fc56cbdeae45a39dc22647c_2_690x176.png">
 </picture>
 
-## Preview
-An example of a part emitting droplets:
-https://github.com/rotntake/BloodEngine/assets/126120456/5b3891bd-37df-4c98-9f4c-95cf85a5c8e3
-
-
-
 ## Usage
 
 To use Blood Engine, you need to require the module in your script and create a new instance of it. You can pass some arguments to the constructor to change the default settings of the system. For example:
