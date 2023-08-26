@@ -4,7 +4,7 @@
 
 ## Preview
 An example of a part emitting droplets:
-https://github.com/rotntake/BloodEngine/assets/126120456/5b3891bd-37df-4c98-9f4c-95cf85a5c8e3.mp4
+https://github.com/rotntake/BloodEngine/assets/126120456/5b3891bd-37df-4c98-9f4c-95cf85a5c8e3
 
 
 
