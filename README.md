@@ -12,6 +12,7 @@ local DripSettings = {
     RandomOffset = true, -- Whether to randomly offset the starting position of the droplets or not.
     DripVisible = false, -- Whether to show the droplets before they become a pool or not.
     DripDelay = 0.01, -- The delay between each droplet.
+    DecayDelay = {10, 15}, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
     Speed = 0.5, -- Determines the speed/velocity of the droplets.
     Limit = 500, -- The maximum number of droplets/pools.
     Distance = 1, -- The required distance for the droplet to register with the part below it.
