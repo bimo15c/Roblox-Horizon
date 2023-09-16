@@ -9,6 +9,7 @@ To use Blood Engine, you need to require the module in your script and create a 
 ```lua
 -- You can leave any of these values as nil or not assign them, it'll use the default values
 local DripSettings = {
+    Decals = false, -- Use if you want to have your pools be decals instead of cylinders.
     RandomOffset = true, -- Whether to randomly offset the starting position of the droplets or not.
     DripVisible = false, -- Whether to show the droplets before they become a pool or not.
     DripDelay = 0.01, -- The delay between each droplet.
