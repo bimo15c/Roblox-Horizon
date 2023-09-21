@@ -16,7 +16,6 @@ local DripSettings = {
     DecayDelay = {10, 15}, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
     Speed = 0.5, -- Determines the speed/velocity of the droplets.
     Limit = 500, -- The maximum number of droplets/pools.
-    Distance = 1, -- The required distance for the droplet to register with the part below it.
     PoolExpansion = false, -- Whether to expand the pool or not when a droplet lands on it.
     MaximumSize = 0.7, -- The maximum X size of the droplets.
     DefaultSize = {0.4, 0.7}, -- Minimum and Maximum. Both determine the default size of a pool.
