@@ -4,6 +4,7 @@
 
 -- *This is the source code, use the file in the releases or the model on roblox if you want a fully functioning version as this does not contain all assets.
 
+
 --[[
 	HOW TO USE:
 	```lua
@@ -16,7 +17,6 @@
 			DecayDelay = {10, 15}, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
 			Speed = 0.5, -- Determines the speed/velocity of the droplets.
 			Limit = 500, -- The maximum amount of droplets/pools.
-			Distance = 1, -- The required distance for the droplet to register with the part below it.
 			PoolExpansion = false, -- Whether to expand the pool or not when a droplet lands on it.
 			MaximumSize = 0.7, -- The maximum X size of the droplets.
 			DefaultSize = {0.4, 0.7}, -- Minimum and Maximum. Both determine the default size of a pool.
@@ -64,25 +64,27 @@
 ]]
 
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 -- Folders
 local Terrain = workspace.Terrain
-local GoreFolder = ReplicatedStorage.Assets
-local Sounds = GoreFolder.Sounds
+local Sounds = script.Sounds
 
 -- Gore Instances
-local DripPart = GoreFolder.Drip
-local DecalPart = GoreFolder.DripDecal
+local DripPart = script.Drip
+local DecalPart = script.DripDecal
 
 local End = Sounds.End:GetChildren()
 local Start = Sounds.Start:GetChildren()
-local Decals = GoreFolder.Decals:GetChildren()
+local Decals = script.Decals:GetChildren()
 
 -- Globals
 local Unpack = table.unpack
 local IsServer = RunService:IsServer()
+local ServerWarn = "Do not run the module on the server"
+
+-- Events
+local RenderStepped = RunService.RenderStepped
 
 -- Class
 local BloodEngine = {}
@@ -104,15 +106,8 @@ local function Weld(Part0, Part1)
 	return WeldInstance
 end
 
--- USE ONLY IN CLIENTS, IT IS MUCH SMOOTHER THAN RUNNING IT ON SERVER
-if IsServer then
-	Warn(
-		"Do not run the module on the server. It may cause throttling and may lead to more weirder looking drips & pools."
-	)
-end
-
 -- Used when making a new instance of the BloodEngine.
--- Use to initialize and assign variables/values
+-- Used to initialize and assign variables/values
 function BloodEngine.new(Options: {})
 	local self = setmetatable({}, BloodEngine)
 
@@ -125,7 +120,6 @@ function BloodEngine.new(Options: {})
 		DecayDelay = { 10, 15 }, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
 		Speed = 0.5, -- Determines the speed/velocity of the droplets.
 		Limit = 500, -- The maximum number of droplets/pools.
-		Distance = 1, -- The required distance for the droplet to register with the part below it.
 		PoolExpansion = false, -- Whether to expand the pool or not when a droplet lands on it.
 		MaximumSize = 0.7, -- The maximum X size of the droplets.
 		DefaultSize = { 0.4, 0.7 }, -- Minimum and Maximum. Both determine the default size of a pool.
@@ -161,11 +155,10 @@ function BloodEngine.new(Options: {})
 	self.RaycastParams = raycastParams
 
 	-- Assign other variables
-	local Distance = self.Settings.Distance
 	self._Random = Random.new()
 
-	-- Connect a single function to the Heartbeat event of the RunService
-	RunService.RenderStepped:Connect(function(DeltaTime: number)
+	-- The function that handles each droplet/pool. Needs to be constantly running
+	local function Handler(DeltaTime: number)
 		DeltaTime = math.max(DeltaTime * 60, 1)
 
 		-- If no drips exist, stop managing. Saves Performance.
@@ -315,14 +308,17 @@ function BloodEngine.new(Options: {})
 				OldestDrip:Destroy()
 			end)
 		end
-	end)
+	end
+
+	-- Connect the handler to the RenderStepped event
+	RenderStepped:Connect(Handler)
 
 	return self
 end
 
+-- Emits droplets using provided options: Point of origin (perferably a part), a Direction, and an Amount
 function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number)
-	-- Emit Blood
-	for i = 1, Amount do
+	for _ = 1, Amount do
 		-- Assign variables
 		local IsPool = false
 
@@ -335,8 +331,7 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 		Drip.CFrame = self.Settings.RandomOffset
 				and CFrame.new(
 					BasePart.Position
-						+ Vector3.new(self._Random:NextNumber(-5, 5), -1, self._Random:NextNumber(-5, 5))
-							/ 10
+						+ Vector3.new(self._Random:NextNumber(-5, 5), -1, self._Random:NextNumber(-5, 5)) / 10
 				)
 			or BasePart.CFrame
 
@@ -358,8 +353,7 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 					self._Random:NextNumber(-10, 10),
 					self._Random:NextNumber(-10, 10),
 					self._Random:NextNumber(-10, 10)
-				)
-				/ 11
+				) / 11
 
 		-- Apply a random velocity to the part
 		local LinearVelocity = Instance.new("VectorForce")
@@ -387,4 +381,9 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 	end
 end
 
-return BloodEngine
+-- Return module if the runtime is client, else, return a warning.
+return IsServer and {
+	new = function(...)
+		Warn(ServerWarn)
+	end,
+} or BloodEngine
