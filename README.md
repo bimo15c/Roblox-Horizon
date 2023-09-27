@@ -43,8 +43,10 @@ BloodInstance:Emit(Part, Part.CFrame.LookVector, 10) -- also customize to whatev
 You can also change the settings of the system after creating an instance by accessing its properties. For example:
 
 ```lua
-BloodInstance.Settings.Speed = 0
-BloodInstance.Settings.DripDelay = 5
+BloodInstance:UpdateSettings({
+	Speed = 0
+	DripDelay 5
+})
 ```
 
 Now if you’d want to make a fully fledged system that makes blood appear in all clients, you can make a remote event, from server to client. When drips are needed, you can pass off the settings (BasePart, Direction, Amount) and the client will do the rest. Its recommended to have only one script manage the blood engine and let the server use its Emit method using the remote event.
