@@ -1,9 +1,6 @@
 -- Written By: @Smileeiles
 -- Description: A blood engine system, can be used for anything other than a blood system if thats what you want.
--- Version: V0.0.4
-
--- *This is the source code, use the file in the releases or the model on roblox if you want a fully functioning version as this does not contain all assets.
-
+-- Version: V0.0.5
 
 --[[
 	HOW TO USE:
@@ -17,6 +14,7 @@
 			DecayDelay = {10, 15}, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
 			Speed = 0.5, -- Determines the speed/velocity of the droplets.
 			Limit = 500, -- The maximum amount of droplets/pools.
+			Distance = 1, -- The required distance for the droplet to register with the part below it.
 			PoolExpansion = false, -- Whether to expand the pool or not when a droplet lands on it.
 			MaximumSize = 0.7, -- The maximum X size of the droplets.
 			DefaultSize = {0.4, 0.7}, -- Minimum and Maximum. Both determine the default size of a pool.
@@ -58,8 +56,10 @@
 
 	You can change the config after applying it into a new instance of the system by doing this:
 	```lua
-		BloodInstance.Settings.Speed = 0
-		BloodInstance.Settings.DripDelay = 5
+		BloodInstance:UpdateSettings({
+			Speed = 0
+			DripDelay 5
+		})
 	```
 ]]
 
@@ -104,6 +104,41 @@ local function Weld(Part0, Part1)
 	WeldInstance.Part1 = Part1
 
 	return WeldInstance
+end
+
+-- Removes the provided droplet from the drips table
+local function RemoveDroplet(Index: number, Drips: {})
+	-- Assign array
+	local Array: {} = table.remove(Drips, Index)
+
+	-- Remove droplet part
+	Array[1]:Destroy()
+end
+
+-- Removes the provided droplet with a transition
+local function TransitionRemoveDroplet(Index: number, Drips: {}, Delay: number)
+	-- Assign array
+	local Array: {} = table.remove(Drips, Index)
+	local Droplet = Array[1]
+
+	task.delay(Delay, function()
+		-- Setup tween
+		local Goal = { Transparency = 1, Size = Vector3.new(0, 0, 0) }
+		local Info = TweenInfo.new(1, Enum.EasingStyle.Quad)
+		local Tween = TweenService:Create(
+			Droplet,
+			Info,
+			Goal
+		)
+
+		-- Destroy drip upon completion
+		Tween.Completed:Connect(function()
+			Array[1]:Destroy()
+		end)
+
+		-- Start transition
+		Tween:Play()
+	end)
 end
 
 -- Used when making a new instance of the BloodEngine.
@@ -156,6 +191,7 @@ function BloodEngine.new(Options: {})
 
 	-- Assign other variables
 	self._Random = Random.new()
+	self.Emitting = false
 
 	-- The function that handles each droplet/pool. Needs to be constantly running
 	local function Handler(DeltaTime: number)
@@ -168,12 +204,12 @@ function BloodEngine.new(Options: {})
 
 		-- Iterate over all drips in the drips table
 		for Index, DripArray in self.Drips do
-			-- Retreive information
-			local -- Unpack information
+			-- Unpack information
+			local
 				DripInstance: MeshPart,
-				EndSound: Sound,
-				BasePart: BasePart,
 				IsPool: boolean,
+				BasePart: BasePart,
+				EndSound: Sound,
 				OldPosition: Vector3 = Unpack(DripArray)
 
 			-- Perform a raycast from the position of the part in the direction of its velocity and find the closest part to the drip
@@ -205,7 +241,7 @@ function BloodEngine.new(Options: {})
 					or CFrame.Angles(math.pi / 2, 0, 0)
 
 				-- Move the part to the hit position
-				DripArray[4] = true
+				DripArray[2] = true
 				DripInstance.Anchored = false
 				DripInstance.CanCollide = false
 				DripInstance.CFrame = Position * Angles
@@ -282,31 +318,23 @@ function BloodEngine.new(Options: {})
 				EndSound:Play()
 			end
 
+			-- Remove droplet/pool if droplet count exceeds limit
+			if #self.Drips > self.Settings.Limit then
+				for DropletIndex: number, Droplet: {} in self.Drips do
+					-- If droplet has formed into a pool, destroy it.
+					-- After destroying it, stop the loop.
+					if Droplet[2] then
+						TransitionRemoveDroplet(DropletIndex, self.Drips, 1)
+						break
+					end
+				end
+			end
+
 			-- Checks if the drip is in the void, if it is, destroy it.
 			if DripInstance.Position.Y <= -80 then
 				DripInstance:Destroy()
 				table.remove(self.Drips, Index)
 			end
-		end
-
-		-- Check if the number of blood parts exceeds the bloodLimit
-		if #self.Drips > self.Settings.Limit then
-			-- Decrease the size and transparency of the part after a few seconds have passed
-			-- Then destroy and delete it from the blood parts dataset
-			local OldestDrip: MeshPart? = table.remove(self.Drips, #self.Drips)
-
-			local DefaultTweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad)
-			local DefaultTween = TweenService:Create(
-				OldestDrip,
-				DefaultTweenInfo,
-				{ Transparency = 1, Size = Vector3.new(0.01, 0.01, 0.01) }
-			)
-
-			DefaultTween:Play()
-
-			DefaultTween.Completed:Connect(function()
-				OldestDrip:Destroy()
-			end)
 		end
 	end
 
@@ -318,6 +346,10 @@ end
 
 -- Emits droplets using provided options: Point of origin (perferably a part), a Direction, and an Amount
 function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number)
+	-- Enable emitting
+	self.Emitting = true
+
+	-- Emit droplets
 	for _ = 1, Amount do
 		-- Assign variables
 		local IsPool = false
@@ -353,7 +385,8 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 					self._Random:NextNumber(-10, 10),
 					self._Random:NextNumber(-10, 10),
 					self._Random:NextNumber(-10, 10)
-				) / 11
+				)
+				/ 11
 
 		-- Apply a random velocity to the part
 		local LinearVelocity = Instance.new("VectorForce")
@@ -370,16 +403,43 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 		-- Add the part to the bloodParts table
 		table.insert(self.Drips, {
 			Drip,
-			RandomEnd,
-			BasePart,
 			IsPool,
+			BasePart,
+			RandomEnd,
 			Drip.Position,
 		})
 
 		-- Delay
 		task.wait(self.Settings.DripDelay)
 	end
+
+	-- Disable emitting
+	self.Emitting = false
 end
+
+-- Updates the settings of the module efficiently
+function BloodEngine:UpdateSettings(Options: {})
+	-- Assign values from options onto keys in self.Settings
+	for Key, Value in Options do
+		self.Settings[Key] = Value
+	end
+
+	-- Assign variables
+	local Filter = self.Settings.Filter
+	local Speed = self.Settings.Speed
+
+	-- Create and initialize the RaycastParams object outside of the function
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = self.Settings.PoolExpansion and { Unpack(Filter) }
+		or { self.DripsFolder, Unpack(Filter) }
+	raycastParams.IgnoreWater = true
+
+	-- Update settings
+	self.Settings.Speed = self.Settings.Decals and Speed * 10 or Speed
+	self.RaycastParams = raycastParams
+end
+
 
 -- Return module if the runtime is client, else, return a warning.
 return IsServer and {
