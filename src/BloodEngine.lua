@@ -1,25 +1,24 @@
 -- Written By: @Smileeiles
 -- Description: A blood engine system, can be used for anything other than a blood system if thats what you want.
--- Version: V0.0.5
+-- Version: V0.0.6
+-- *^ Please don't use the source-code as it doesn't include all the assets, the rewrite hopefully wont have this issue.
 
 --[[
 	HOW TO USE:
 	```lua
 		-- You can leave any of these values as nil, it'll use the default values
-		self.Settings = {
+		local DripSettings = {
+			IgnorePlayers = false, -- Ignores any player characters in the workspace.
 			Decals = false, -- Use if you want to have your pools be decals instead of cylinders.
 			RandomOffset = true, -- Whether to randomly offset the starting position of the droplets or not.
 			DripVisible = false, -- Whether to show the droplets before they become a pool or not.
 			DripDelay = 0.01, -- The delay between each droplet.
-			DecayDelay = {10, 15}, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
+			DecayDelay = { 10, 15 }, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
 			Speed = 0.5, -- Determines the speed/velocity of the droplets.
-			Limit = 500, -- The maximum amount of droplets/pools.
-			Distance = 1, -- The required distance for the droplet to register with the part below it.
-			PoolExpansion = false, -- Whether to expand the pool or not when a droplet lands on it.
-			MaximumSize = 0.7, -- The maximum X size of the droplets.
-			DefaultSize = {0.4, 0.7}, -- Minimum and Maximum. Both determine the default size of a pool.
-			ExpansionSize = {0.1, 0.5}, -- Minimum and Maximum. Both determine the expansion size range of the pools.
-			Filter = {} -- An array that stores instances that don't interfere with the droplets raycast process.
+			Limit = 500, -- The maximum number of droplets/pools.
+			SplashAmount = 10, -- The amount of splash particles to emit, 0 to fully disable it.
+			DefaultSize = { 0.4, 0.7 }, -- Minimum and Maximum. Both determine the default size of a pool.
+			Filter = {}, -- An array that stores instances that don't interfere with the droplets raycast process.
 		}
 
 		-- MODULES
@@ -58,11 +57,12 @@
 	```lua
 		BloodInstance:UpdateSettings({
 			Speed = 0
-			DripDelay 5
+			DripDelay = 5
 		})
 	```
 ]]
 
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
@@ -83,8 +83,11 @@ local Unpack = table.unpack
 local IsServer = RunService:IsServer()
 local ServerWarn = "Do not run the module on the server"
 
+-- Essentials
+local FastCast = require(script.FastCast)
+
 -- Events
-local RenderStepped = RunService.RenderStepped
+local PlayerAdded = Players.PlayerAdded
 
 -- Class
 local BloodEngine = {}
@@ -106,20 +109,11 @@ local function Weld(Part0, Part1)
 	return WeldInstance
 end
 
--- Removes the provided droplet from the drips table
-local function RemoveDroplet(Index: number, Drips: {})
-	-- Assign array
-	local Array: {} = table.remove(Drips, Index)
-
-	-- Remove droplet part
-	Array[1]:Destroy()
-end
-
 -- Removes the provided droplet with a transition
 local function TransitionRemoveDroplet(Index: number, Drips: {}, Delay: number)
 	-- Assign array
-	local Array: {} = table.remove(Drips, Index)
-	local Droplet = Array[1]
+	local Array = table.remove(Drips, Index)
+	local Droplet = Array.Identifier
 
 	task.delay(Delay, function()
 		-- Setup tween
@@ -133,7 +127,7 @@ local function TransitionRemoveDroplet(Index: number, Drips: {}, Delay: number)
 
 		-- Destroy drip upon completion
 		Tween.Completed:Connect(function()
-			Array[1]:Destroy()
+			Droplet:Destroy()
 		end)
 
 		-- Start transition
@@ -148,6 +142,7 @@ function BloodEngine.new(Options: {})
 
 	-- Assign class variables
 	self.Settings = {
+		IgnorePlayers = false, -- Ignores any player characters in the workspace.
 		Decals = false, -- Use if you want to have your pools be decals instead of cylinders.
 		RandomOffset = true, -- Whether to randomly offset the starting position of the droplets or not.
 		DripVisible = false, -- Whether to show the droplets before they become a pool or not.
@@ -155,10 +150,8 @@ function BloodEngine.new(Options: {})
 		DecayDelay = { 10, 15 }, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
 		Speed = 0.5, -- Determines the speed/velocity of the droplets.
 		Limit = 500, -- The maximum number of droplets/pools.
-		PoolExpansion = false, -- Whether to expand the pool or not when a droplet lands on it.
-		MaximumSize = 0.7, -- The maximum X size of the droplets.
+		SplashAmount = 10, -- The amount of splash particles to emit, 0 to fully disable it.
 		DefaultSize = { 0.4, 0.7 }, -- Minimum and Maximum. Both determine the default size of a pool.
-		ExpansionSize = { 0.1, 0.5 }, -- Minimum and Maximum. Both determine the expansion size range of the pools.
 		Filter = {}, -- An array that stores instances that don't interfere with the droplets raycast process.
 	}
 
@@ -169,177 +162,179 @@ function BloodEngine.new(Options: {})
 
 	-- Assign variables
 	local Filter = self.Settings.Filter
-	local Speed = self.Settings.Speed
-
-	-- Update speed if decals are enabled
-	self.Settings.Speed = self.Settings.Decals and Speed * 10 or Speed
 
 	-- Creates a folder for drips if necessary
 	local DripsFolder = Terrain:FindFirstChild("DripsFolder") or Instance.new("Folder", Terrain)
 	DripsFolder.Name = DripsFolder.Name == "DripsFolder" and DripsFolder.Name or "DripsFolder"
 
-	-- Create and initialize the RaycastParams object outside of the function
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = self.Settings.PoolExpansion and { Unpack(Filter) }
+	-- Assign a filter list
+	local FilterList = self.Settings.PoolExpansion and { Unpack(Filter) }
 		or { DripsFolder, Unpack(Filter) }
-	raycastParams.IgnoreWater = true
+
+	-- Create and initialize the RaycastParams object outside of the function
+	local Params = RaycastParams.new()
+	Params.FilterType = Enum.RaycastFilterType.Exclude
+	Params.FilterDescendantsInstances = FilterList
+	Params.IgnoreWater = true
+
+	-- Creates a brand new caster with its behavior
+	self.Caster = FastCast.new()
+	self.CasterBehavior = FastCast.newBehavior()
+
+	-- Assign behavior properties
+	self.CasterBehavior.CosmeticBulletTemplate  = self.Settings.Decals and DecalPart or DripPart
+	self.CasterBehavior.CosmeticBulletContainer = DripsFolder
+	self.CasterBehavior.Acceleration  					= Vector3.new(0, -workspace.Gravity, 0)
+	self.CasterBehavior.MaxDistance   					= 500
+	self.CasterBehavior.RaycastParams 					= Params
+
+	-- Add new/old players to the filter list
+	for _, Player in Players:GetPlayers() do
+		if not self.Settings.IgnorePlayers then
+			break
+		end
+
+		-- Assign variables
+		local FilterInstances = Params.FilterDescendantsInstances
+
+		-- Add characters to the filter list
+		Params.FilterDescendantsInstances = {Player.Character, Unpack(FilterInstances)}
+
+		-- Add any new characters to the filter list
+		Player.CharacterAdded:Connect(function()
+			Params.FilterDescendantsInstances = {Player.Character, Unpack(FilterInstances)}
+		end)
+	end
+
+	PlayerAdded:Connect(function(Player)
+		Player.CharacterAdded:Connect(function()
+			-- Assign variables
+			local FilterInstances = Params.FilterDescendantsInstances
+
+			-- Add player character to filterlist
+			Params.FilterDescendantsInstances = {Player.Character, Unpack(FilterInstances)}
+		end)
+	end)
 
 	self.Drips = {}
 	self.DripsFolder = DripsFolder
-	self.RaycastParams = raycastParams
 
 	-- Assign other variables
 	self._Random = Random.new()
+	self.RaycastParams = Params
 	self.Emitting = false
 
-	-- The function that handles each droplet/pool. Needs to be constantly running
-	local function Handler(DeltaTime: number)
-		DeltaTime = math.max(DeltaTime * 60, 1)
+	-- Gradually fades out a droplet over time and then destroys it.
+	local function DecayDroplet(Droplet: BasePart, YLevel: number)
+		local DefaultTweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad)
+		local DefaultTween = TweenService:Create(
+			Droplet,
+			DefaultTweenInfo,
+			{ Transparency = 1, Size = Vector3.new(0.01, YLevel, 0.01) }
+		)
 
-		-- If no drips exist, stop managing. Saves Performance.
-		if #self.Drips <= 0 then
-			return
+		task.delay(self._Random:NextNumber(Unpack(self.Settings.DecayDelay)), function()
+			-- Destroy droplet when the tween completes
+			DefaultTween.Completed:Connect(function()
+				Droplet:Destroy()
+			end)
+
+			-- Play tween
+			DefaultTween:Play()
+		end)
+	end
+
+	-- Returns a droplet array using its identifier
+	local function GetArray(Droplet: BasePart)
+		local Array
+
+		-- Find matching identifier
+		for _, DropletArray in self.Drips do
+			if (DropletArray.Identifier == Droplet) then
+				Array = DropletArray
+			end
 		end
 
-		-- Iterate over all drips in the drips table
-		for Index, DripArray in self.Drips do
-			-- Unpack information
-			local
-				DripInstance: MeshPart,
-				IsPool: boolean,
-				BasePart: BasePart,
-				EndSound: Sound,
-				OldPosition: Vector3 = Unpack(DripArray)
+		return Array
+	end
 
-			-- Perform a raycast from the position of the part in the direction of its velocity and find the closest part to the drip
-			local Result = workspace:Raycast(
-				DripInstance.Position,
-				(DripInstance.Position - OldPosition).Unit * 1.5 * DeltaTime,
-				self.RaycastParams
-			)
+	-- Initiates the splashing sequence
+	local function Splash(Droplet: BasePart, SplashAmount: number)
+		-- Assign droplet children
+		local ImpactAttachment: Attachment = Droplet.Impact
+		local Particles = ImpactAttachment:GetChildren()
 
-			-- Update old position
-			DripArray[5] = DripInstance.Position
-
-			-- Check if the result is not nil and if the hit object is not the basePart
-			if
-				DripInstance
-				and Result
-				and Result.Instance ~= BasePart
-				and not IsPool
-				and not Result.Instance:IsDescendantOf(DripsFolder)
-			then
-				-- Assign variables
-				local YLevel = self.Settings.Decals and 0.001 or 0.01
-				local SizeYLevel = self._Random:NextNumber(1, 10) / 100
-				local GoalYLevel = self.Settings.Decals and 0.002 or SizeYLevel
-				local PositionYLevel = self.Settings.Decals and (Result.Normal / 76) or Vector3.zero
-
-				local Position = CFrame.new(Result.Position + PositionYLevel, Result.Position + Result.Normal)
-				local Angles = self.Settings.Decals and CFrame.Angles(-math.pi / 2, math.random(0, 180), 0)
-					or CFrame.Angles(math.pi / 2, 0, 0)
-
-				-- Move the part to the hit position
-				DripArray[2] = true
-				DripInstance.Anchored = false
-				DripInstance.CanCollide = false
-				DripInstance.CFrame = Position * Angles
-				DripInstance.Transparency = DripPart.Transparency
-
-				-- Weld the pool to the result's instance
-				Weld(Result.Instance, DripInstance)
-
-				-- Grow the size of the part over time to create a blood pool
-				local Info = TweenInfo.new(0.5, Enum.EasingStyle.Cubic)
-				local RandomTweenIncrement = self._Random:NextNumber(Unpack(self.Settings.DefaultSize))
-				local SizeGoal = Vector3.new(RandomTweenIncrement, GoalYLevel, RandomTweenIncrement)
-				local Tween = TweenService:Create(DripInstance, Info, { Size = SizeGoal })
-
-				-- Play size tween and start the ending sound
-				EndSound:Play()
-				Tween:Play()
-
-				-- Decrease the size and transparency of the part after a few seconds have passed
-				-- Then destroy and delete it from the blood parts dataset
-				local DefaultTweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad)
-				local DefaultTween = TweenService:Create(
-					DripInstance,
-					DefaultTweenInfo,
-					{ Transparency = 1, Size = Vector3.new(0.01, YLevel, 0.01) }
-				)
-
-				task.delay(self._Random:NextNumber(Unpack(self.Settings.DecayDelay)), function()
-					DefaultTween:Play()
-
-					DefaultTween.Completed:Connect(function()
-						-- Remove the drip instance from existance and from the Drips dataset
-						table.remove(self.Drips, Index)
-						DripInstance:Destroy()
-					end)
-				end)
+		-- Emit particles
+		for _, Particle: ParticleEmitter in Particles do
+			if (not Particle:IsA("ParticleEmitter")) then
+				continue
 			end
 
-			-- Does the same thing as making the drip a pool, but instead if it lands on a pool, it increases the pool's size
-			if
-				Result
-				and Result.Instance ~= BasePart
-				and not IsPool
-				and Result.Instance:IsDescendantOf(DripsFolder)
-			then
-				-- Assign variables
-				local FoundDrip: MeshPart? = Result.Instance
-				local Size = FoundDrip.Size
-
-				local RandomNumber = self._Random:NextNumber(Unpack(self.Settings.ExpansionSize))
-				local SizeGoal = Size + Vector3.new(RandomNumber, 0, RandomNumber)
-
-				local Logic = (
-					FoundDrip.Size.X > self.Settings.MaximumSize
-					or FoundDrip.Transparency < DripPart.Transparency
-					or FoundDrip.Size.X < self.Settings.DefaultSize[1]
-				)
-
-				-- Pool & Size check
-				if Logic then
-					continue
-				end
-
-				-- Assign tweens
-				local GoalInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad)
-				local Tween = TweenService:Create(FoundDrip, GoalInfo, { Size = SizeGoal })
-
-				-- Destroy the base drip
-				table.remove(self.Drips, Index)
-				DripInstance:Destroy()
-
-				-- Apply sizing to the drip that got landed on and play the end sound
-				Tween:Play()
-				EndSound:Play()
-			end
-
-			-- Remove droplet/pool if droplet count exceeds limit
-			if #self.Drips > self.Settings.Limit then
-				for DropletIndex: number, Droplet: {} in self.Drips do
-					-- If droplet has formed into a pool, destroy it.
-					-- After destroying it, stop the loop.
-					if Droplet[2] then
-						TransitionRemoveDroplet(DropletIndex, self.Drips, 1)
-						break
-					end
-				end
-			end
-
-			-- Checks if the drip is in the void, if it is, destroy it.
-			if DripInstance.Position.Y <= -80 then
-				DripInstance:Destroy()
-				table.remove(self.Drips, Index)
-			end
+			Particle:Emit(SplashAmount)
 		end
 	end
 
 	-- Connect the handler to the RenderStepped event
-	RenderStepped:Connect(Handler)
+	--RenderStepped:Connect(Handler)
+
+	self.Caster.RayHit:Connect(function(_, Result: RaycastResult, _, Droplet: BasePart)
+		-- Assign variables
+		local Settings = self.Settings
+
+		-- Assign required position variables
+		local YLevel = Settings.Decals and 0.001 or 0.01
+		local SizeYLevel = self._Random:NextNumber(1, 10) / 100
+		local GoalYLevel = Settings.Decals and 0.002 or SizeYLevel
+		local PositionYLevel = Settings.Decals and (Result.Normal / 76) or Vector3.zero
+
+		-- Assign outcome position
+		local FinalPosition = Result.Position - Vector3.new(0, 0, 0.1)
+		local Position = CFrame.new(FinalPosition + PositionYLevel, FinalPosition + Result.Normal)
+		local Angles = self.Settings.Decals and CFrame.Angles(-math.pi / 2, math.random(0, 180), 0)
+			or CFrame.Angles(math.pi / 2, 0, 0)
+
+		-- Assign droplet-array properties
+		local DropletArray = GetArray(Droplet)
+		local EndSound = DropletArray.EndSound
+
+		-- Update droplet properties
+		Droplet.Anchored     = false
+		Droplet.CanCollide   = false
+		Droplet.CFrame 	     = Position * Angles
+		Droplet.Transparency = DripPart.Transparency
+
+		-- Weld the pool to the result's instance
+		Weld(Result.Instance, Droplet)
+
+		-- Grow the size of the part over time to create a blood pool
+		local Info = TweenInfo.new(0.5, Enum.EasingStyle.Cubic)
+		local RandomTweenIncrement = self._Random:NextNumber(Unpack(self.Settings.DefaultSize))
+		local SizeGoal = Vector3.new(RandomTweenIncrement, GoalYLevel, RandomTweenIncrement)
+		local Tween = TweenService:Create(Droplet, Info, { Size = SizeGoal })
+
+		-- Call functions
+		EndSound:Play()
+		Tween:Play()
+		Splash(
+			Droplet,
+			Settings.SplashAmount
+		)
+
+		-- Handles the decaying of the droplet/pool
+		DecayDroplet(
+			Droplet,
+			YLevel
+		)
+	end)
+
+	self.Caster.LengthChanged:Connect(function(_, Origin, Direction, Length, _, Droplet)
+		if Droplet then
+			local DropletLength = Droplet.Size.Z/2
+			local Offset = CFrame.new(0,0, -(Length - DropletLength))
+
+			Droplet.CFrame = CFrame.new(Origin, Origin + Direction):ToWorldSpace(Offset)
+		end
+	end)
 
 	return self
 end
@@ -351,65 +346,68 @@ function BloodEngine:Emit(BasePart: BasePart, Direction: Vector3, Amount: number
 
 	-- Emit droplets
 	for _ = 1, Amount do
-		-- Assign variables
-		local IsPool = false
+		-- Assign self variables
+		local Settings = self.Settings
 
-		-- Create a new part
-		local Drip = self.Settings.Decals and DecalPart:Clone() or DripPart:Clone()
-		local RandomDecal = self.Settings.Decals and Decals[math.random(1, #Decals)]:Clone()
+		-- Assign caster variables
+		local Offset = BasePart.Position +
+			Vector3.new(
+				self._Random:NextNumber(-5, 5),
+				 0,
+				self._Random:NextNumber(-5, 5)
+			) / 5
+
+		local FinalPosition = Settings.RandomOffset and Offset or BasePart.Position
+
+		local FinalDirection = Direction
+			or Vector3.new(
+				self._Random:NextNumber(-10, 10),
+				-10,
+				self._Random:NextNumber(-10, 10)
+			) * 2
+
+		local ActiveDroplet = self.Caster:Fire(
+			FinalPosition,
+			FinalDirection,
+			Settings.Speed * 10,
+			self.CasterBehavior
+		)
+
+		-- Remove any existing pool if the amount of droplets is above limit
+		if #self.Drips > self.Settings.Limit then
+			TransitionRemoveDroplet(
+				2,
+				self.Drips,
+				1
+			)
+		end
+
+		-- Assign active-droplet's information
+		local RayInfo = ActiveDroplet.RayInfo
+		local Droplet: BasePart = RayInfo.CosmeticBulletObject
+
+		-- Assign droplet effects
+		local RandomDecal = Settings.Decals and Decals[math.random(1, #Decals)]:Clone()
 		local RandomStart = Start[math.random(1, #Start)]:Clone()
 		local RandomEnd = End[math.random(1, #End)]:Clone()
 
-		Drip.CFrame = self.Settings.RandomOffset
-				and CFrame.new(
-					BasePart.Position
-						+ Vector3.new(self._Random:NextNumber(-5, 5), -1, self._Random:NextNumber(-5, 5)) / 10
-				)
-			or BasePart.CFrame
+		-- Update effect properties
+		RandomStart.Parent, _ = Droplet, RandomStart:Play()
+		RandomEnd.Parent      = Droplet
 
-		Drip.Parent = self.DripsFolder
-		Drip.Transparency = self.Settings.DripVisible and 0 or 1
-		RandomStart.Parent, RandomEnd.Parent = Drip, Drip
-
-		-- Apply decal
-		if RandomDecal then
-			RandomDecal.Parent = Drip
+		-- Parent the random decal if its not null
+		if (RandomDecal) then
+			RandomDecal.Parent = Droplet
 		end
 
-		-- Play starting sound
-		RandomStart:Play()
-
-		-- Assign direction
-		local FinalDirection = Direction
-			or Vector3.new(
-					self._Random:NextNumber(-10, 10),
-					self._Random:NextNumber(-10, 10),
-					self._Random:NextNumber(-10, 10)
-				)
-				/ 11
-
-		-- Apply a random velocity to the part
-		local LinearVelocity = Instance.new("VectorForce")
-		LinearVelocity.Attachment0 = Instance.new("Attachment", Drip)
-		LinearVelocity.Force = FinalDirection * self.Settings.Speed
-		LinearVelocity.Parent = Drip
-
-		-- Remove and Update stuff after a few seconds
-		task.delay(0.01, function()
-			Drip.CanCollide = false
-			LinearVelocity:Destroy()
-		end)
-
-		-- Add the part to the bloodParts table
+		-- Update droplet properties
+		Droplet.Transparency = self.Settings.DripVisible and 0 or 1
 		table.insert(self.Drips, {
-			Drip,
-			IsPool,
-			BasePart,
-			RandomEnd,
-			Drip.Position,
+			Identifier = Droplet,
+			EndSound = RandomEnd
 		})
 
-		-- Delay
+		-- Emitting delay
 		task.wait(self.Settings.DripDelay)
 	end
 
@@ -419,31 +417,38 @@ end
 
 -- Updates the settings of the module efficiently
 function BloodEngine:UpdateSettings(Options: {})
+	-- Assign variables
+	local Settings = self.Settings
+	local Filter = Settings.Filter
+
 	-- Assign values from options onto keys in self.Settings
 	for Key, Value in Options do
 		self.Settings[Key] = Value
 	end
 
-	-- Assign variables
-	local Filter = self.Settings.Filter
-	local Speed = self.Settings.Speed
+	-- Assign a filter list
+	local FilterList = self.Settings.PoolExpansion and { Unpack(Filter) }
+	or { self.DripsFolder, Unpack(Filter) }
 
-	-- Create and initialize the RaycastParams object outside of the function
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	raycastParams.FilterDescendantsInstances = self.Settings.PoolExpansion and { Unpack(Filter) }
-		or { self.DripsFolder, Unpack(Filter) }
-	raycastParams.IgnoreWater = true
+	-- Add players characters to filter list
+	for _, Player in Players:GetPlayers() do
+		if not Settings.IgnorePlayers then
+			break
+		end
 
-	-- Update settings
-	self.Settings.Speed = self.Settings.Decals and Speed * 10 or Speed
-	self.RaycastParams = raycastParams
+		-- Reset filterlist and readd characters
+		table.insert(FilterList, Player.Character)
+	end
+
+	-- Update behavior properties
+	self.RaycastParams.FilterDescendantsInstances = FilterList
+	self.CasterBehavior.CosmeticBulletTemplate  = Settings.Decals and DecalPart or DripPart
 end
 
+-- Warns the current runtime if it is a server
+if IsServer then
+	Warn(ServerWarn)
+end
 
 -- Return module if the runtime is client, else, return a warning.
-return IsServer and {
-	new = function(...)
-		Warn(ServerWarn)
-	end,
-} or BloodEngine
+return BloodEngine
