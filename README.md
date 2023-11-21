@@ -1,51 +1,55 @@
+<div align="center">
+	
 <picture>
- <img alt="Logo" src="https://devforum-uploads.s3.dualstack.us-east-2.amazonaws.com/uploads/optimized/5X/7/3/3/2/73326251a8afb11d5fc56cbdeae45a39dc22647c_2_690x176.png">
+ <img alt="Logo" src="https://github.com/rotntake/BloodEngine/assets/126120456/eb3a43ec-579f-491d-a9f3-f32e3a75d9ff">
 </picture>
 
+</div>
+
+<div align="center">
+
+
+v1.0.0 • [Model](https://create.roblox.com/marketplace/asset/15420466379/) 
+
+</div>
+
+## What is Blood Engine?
+Blood Engine is a versatile resource that can be utilized for various applications, including creating effects like paint, water, blood, and more. It offers numerous methods tailored to meet your specific needs.
+
+One of its key features is the ability to emit "droplets" - these are meshes that can take on the appearance of "Decals" or "Spheres". These droplets can be emitted from any given origin point with a given velocity. Upon landing on a surface, such as a wall or floor, they transform into a pool.
+
+This entire process is highly customizable, with 24 options at your disposal to tweak and adjust according to your requirements. This ensures that Blood Engine can adapt to a wide range of scenarios and use-cases, providing you with the flexibility to create the exact effect you're aiming for.
+
 ## Usage
+#### Initialization
+Firstly, you'll need to initialize BloodEngine with your preferred settings. This can be done in either a client or server script. However, it's generally more advisable to do this on the client side, so we'll proceed with that approach. 
 
-To use Blood Engine, you need to require the module in your script and create a new instance of it. You can pass some arguments to the constructor to change the default settings of the system. For example:
-
+The settings provide you with control over various aspects of droplets and pools. These include the maximum number of droplets that can be created, the type of droplets to use, the velocity of droplets upon emission, and much more.
 ```lua
--- You can leave any of these values as nil or not assign them, it'll use the default values
-local DripSettings = {
-  IgnorePlayers = false, -- Ignores any player characters in the workspace.
-  Decals = false, -- Use if you want to have your pools be decals instead of cylinders.
-  RandomOffset = true, -- Whether to randomly offset the starting position of the droplets or not.
-  DripVisible = false, -- Whether to show the droplets before they become a pool or not.
-  DripDelay = 0.01, -- The delay between each droplet.
-  DecayDelay = { 10, 15 }, -- Each pool will start to fade away randomly between min and max seconds after it’s created.
-  Speed = 0.5, -- Determines the speed/velocity of the droplets.
-  Limit = 500, -- The maximum number of droplets/pools.
-  SplashAmount = 10, -- The amount of splash particles to emit, 0 to fully disable it.
-  DefaultSize = { 0.4, 0.7 }, -- Minimum and Maximum. Both determine the default size of a pool.
-  Filter = {}, -- An array that stores instances that don't interfere with the droplets raycast process.
-}
+-- Import the BloodEngine module
+local BloodEngine = require(PathToModule)
 
--- MODULE
-local BloodEngine = require(ReplicatedStorage.BloodEngine)
-local BloodInstance = BloodEngine.new(DripSettings) -- customize to whatever you want
-```
-
-Then, you can use the Emit method to create blood drips from a base part in a given direction with a given amount. For example:
-
-```lua
--- TARGET
-local Part = workspace.Part
-
--- Emits drips from a part in the workspace, emits 10 blood drips only in the front direction
--- Leave the direction nil if you want it to go in a random direction `BloodInstance:Emit(Part, nil, 10)`
--- EXAMPLE: BloodInstance:Emit(Part, nil, 10)
-BloodInstance:Emit(Part, Part.CFrame.LookVector, 10) -- also customize to whatever you want.
-```
-
-You can also change the settings of the system after creating an instance by accessing its properties. For example:
-
-```lua
-BloodInstance:UpdateSettings({
-	Speed = 0
-	DripDelay = 5
+-- Initialize BloodEngine with desired settings
+local Engine = BloodEngine.new({
+    Limit = 100, -- Sets the maximum number of droplets that can be created.
+    Type = "Default", -- Defines the droplet type. It can be either "Default" (Sphere) or "Decal",
+    RandomOffset = false, -- Determines whether a droplet should spawn at a random offset from a given position.
+    OffsetRange = {-20, 10}, -- Specifies the offset range for the position vectors.
+    DropletVelocity = {1, 2}, -- Controls the velocity of the emitted droplet.
+    DropletDelay = {0.05, 0.1}, -- Sets the delay between emitting droplets in a loop (for the EmitAmount method).
+    StartingSize = Vector3.new(0.01, 0.7, 0.01), -- Sets the initial size of the droplets upon landing.
+    Expansion = true, -- Determines whether a pool can expand when a droplet lands on it.
+    MaximumSize = 1, -- Sets the maximum size a pool can reach.
 })
 ```
+#### Emitting Droplets
+After initializing the module, you're all set to emit droplets. There are two key methods available for droplet emission: `EmitAmount` and `Emit`.
+```lua
+-- Emit a specific amount of droplets from a given origin in specific or nil direction
+-- (Setting the Direction to nil will make droplets go in random directions)
+Engine:EmitAmount(Origin, Direction, Amount)
 
-Now if you’d want to make a fully fledged system that makes blood appear in all clients, you can make a remote event, from server to client. When drips are needed, you can pass off the settings (BasePart, Direction, Amount) and the client will do the rest. Its recommended to have only one script manage the blood engine and let the server use its Emit method using the remote event.
+-- Emit a single droplet from a given origin in a specific or nil direction
+Engine:Emit(Origin, Direction)
+```
+In this instance, we’ll be utilizing the `EmitAmount` method. Typically, you’d use the `Emit` method when you want to create your own loop instead of relying on the built-in loop of `EmitAmount` . This gives you more control over the emission process.
