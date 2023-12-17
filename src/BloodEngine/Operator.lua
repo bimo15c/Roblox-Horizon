@@ -126,7 +126,7 @@ function Operator:InitializeCast()
 		local SizeRange = Handler.DefaultSize
 		local Distance = Handler.Distance
 		local Expansion = Handler.Expansion
-		local IsDecal = Handler.Type == "Decals"
+		local IsDecal = Handler.Type == "Decal"
 
 		-- Variable definitions
 		local CastInstance = RaycastResult.Instance
@@ -217,7 +217,7 @@ function Operator:UpdateDroplet(Object: BasePart)
 	-- Variable definitions
 	local DropletTrail = Handler.Trail
 	local DropletVisible = Handler.DropletVisible
-	local IsDecal = Handler.Type == "Decals"
+	local IsDecal = Handler.Type == "Decal"
 
 	-- Object definitions
 	local Trail = Object:FindFirstChildOfClass("Trail")
@@ -311,7 +311,7 @@ function Operator:Expanse(Object: BasePart, ClosestPart: BasePart, Velocity: Vec
 	-- Variable definitions
 	local Divider = Handler.ExpanseDivider
 	local MaximumSize = Handler.MaximumSize
-	local IsDecal = Handler.Type == "Decals"
+	local IsDecal = Handler.Type == "Decal"
 
 	-- Info definitions
 	local Tweens = Handler.Tweens
