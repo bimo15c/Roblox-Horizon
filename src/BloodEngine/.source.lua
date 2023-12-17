@@ -35,7 +35,7 @@ function BloodEngine.new(Data: Settings.Class)
 	local self = setmetatable({
 		Types = {
 			Default = Models.Droplet,
-			Decals = Models.Decal,
+			Decal = Models.Decal,
 		},
 	}, BloodEngine)
 
@@ -59,20 +59,21 @@ end
   Emitter, emits droplets based on given amount,
   origin & direction.
 
-	This is utilized when you prefer
-	not to create a loop just for the
-	purpose of emitting a few droplets.
+  This is utilized when you prefer
+  not to create a loop just for the
+  purpose of emitting a few droplets.
 ]]
-function BloodEngine:EmitAmount(Origin: Vector3, Direction: Vector3, Amount: number)
+function BloodEngine:EmitAmount(Origin: Vector3 | BasePart, Direction: Vector3, Amount: number)
 	-- Class definitions
 	local Handler: Settings.Class = self.ActiveHandler
 
 	-- Variable definitions
 	local DropletDelay = Handler.DropletDelay
-
+	
 	for _ = 1, Amount, 1 do
-		-- Determine the delay time for the next droplet
+		-- Define variables for later use
 		local DelayTime = Functions.NextNumber(Unpack(DropletDelay))
+		Origin = (Functions.IsOfType(Origin, "Vector3") and Origin or Origin.Position)
 
 		-- Emit a droplet in the specified direction & origin
 		self:Emit(Origin, Direction)
@@ -90,11 +91,12 @@ end
   This is useful when you want to control the emission
   loop externally.
 ]]
-function BloodEngine:Emit(Origin: Vector3, Direction: Vector3)
+function BloodEngine:Emit(Origin: Vector3 | BasePart, Direction: Vector3)
 	-- Class definitions
 	local Engine: Operator.Class = self.ActiveEngine
 
 	-- Variable definitions
+	Origin = (Functions.IsOfType(Origin, "Vector3") and Origin or Origin.Position)
 	Direction = Direction or Functions.GetVector({ -10, 10 }) / 10
 
 	-- Emit a single droplet
