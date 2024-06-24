@@ -28,7 +28,7 @@ local Functions = {}
 local Properties = {
 	"Size",
 	"Transparency",
-	"Anchored"
+	"Anchored",
 }
 
 --[[
@@ -73,6 +73,8 @@ function Functions.GetFunctionName(Function, Table)
 	for Name, AltFunction in Table do
 		return AltFunction == Function and Name
 	end
+
+	return nil
 end
 
 --[[
@@ -116,8 +118,11 @@ end
 ]]
 function Functions.GetVector(Range: {})
 	-- Vector definition
-	local Vector =
-		Vector3.new(Random:NextNumber(Unpack(Range)), Random:NextNumber(Unpack(Range)), Random:NextNumber(Unpack(Range)))
+	local Vector = Vector3.new(
+		Random:NextNumber(Unpack(Range)),
+		Random:NextNumber(Unpack(Range)),
+		Random:NextNumber(Unpack(Range))
+	)
 
 	-- Export position with applied offset
 	return Vector
