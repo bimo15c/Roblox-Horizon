@@ -10,7 +10,6 @@ local ParentClass = script.Parent
 local Assets = ParentClass.Assets
 
 -- Asset definitions
-local Models = Assets.Models
 local Sounds = Assets.Sounds
 local Essentials = Assets.Essentials
 
@@ -118,7 +117,7 @@ function Operator:InitializeCast()
 
 	RayHit:Connect(function(_, RaycastResult: RaycastResult, Velocity, Object: BasePart?)
 		if not Object then
-			return
+			return nil
 		end
 
 		-- Options definitions
@@ -141,11 +140,16 @@ function Operator:InitializeCast()
 
 		local ClosestPart = Functions.GetClosest(Object, Distance, Container)
 
-		local ExpansionLogic = (Expansion and ClosestPart and not ClosestPart:GetAttribute("Decaying"))
+		local ExpansionLogic = (
+			Expansion
+			and ClosestPart
+			and (not ClosestPart:GetAttribute("Decaying") and not ClosestPart:GetAttribute("Expanding"))
+		)
 
 		-- Evaluates if the droplet is close to another pool
 		if ExpansionLogic then
-			return self:Expanse(Object, ClosestPart, Velocity, GoalSize)
+			self:Expanse(Object, ClosestPart, Velocity, GoalSize)
+			return nil
 		end
 
 		-- Update properties
@@ -164,6 +168,8 @@ function Operator:InitializeCast()
 		self:HandleDroplet(Object)
 		self:HitEffects(Object, Velocity)
 		Functions.Weld(CastInstance, Object)
+
+		return nil
 	end)
 end
 
@@ -332,10 +338,19 @@ function Operator:Expanse(Object: BasePart, ClosestPart: BasePart, Velocity: Vec
 	local FinalSize = (LastSize.X < MaximumSize and LastSize or PoolSize)
 
 	-- Update properties
+	ClosestPart:SetAttribute("Expanding", true)
 	ClosestPart.Size = FirstSize
 
+	-- Transition to Expanded size
+	local Tween = Functions.CreateTween(ClosestPart, Expand, { Size = FinalSize })
+
+	Tween:Play()
+	Tween.Completed:Connect(function()
+		ClosestPart:SetAttribute("Expanding", nil)
+		Tween:Destroy()
+	end)
+
 	-- Execute essential functions
-	Functions.CreateTween(ClosestPart, Expand, { Size = FinalSize }):Play()
 	Functions.PlaySound(Functions.GetRandom(EndFolder), ClosestPart)
 	self:ReturnDroplet(Object)
 end
