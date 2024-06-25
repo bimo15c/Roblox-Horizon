@@ -9,7 +9,7 @@
 <div align="center">
 
 
-v1.0.0 • [Model](https://create.roblox.com/marketplace/asset/15420466379/) 
+v1.0.0 • [Model](https://create.roblox.com/marketplace/asset/15420466379/) • [Devforum](https://devforum.roblox.com/t/blood-engine-a-droplet-emitter-system/2545682)
 
 </div>
 
