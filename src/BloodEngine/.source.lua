@@ -63,20 +63,19 @@ end
   not to create a loop just for the
   purpose of emitting a few droplets.
 ]]
-function BloodEngine:EmitAmount(Origin: Vector3 | BasePart, Direction: Vector3, Amount: number)
+function BloodEngine:EmitAmount(Origin: Vector3 | BasePart, Direction: Vector3, Amount: number, Data: Settings.Class?)
 	-- Class definitions
 	local Handler: Settings.Class = self.ActiveHandler
 
 	-- Variable definitions
 	local DropletDelay = Handler.DropletDelay
-	
+
 	for _ = 1, Amount, 1 do
 		-- Define variables for later use
 		local DelayTime = Functions.NextNumber(Unpack(DropletDelay))
-		Origin = (Functions.IsOfType(Origin, "Vector3") and Origin or Origin.Position)
 
 		-- Emit a droplet in the specified direction & origin
-		self:Emit(Origin, Direction)
+		self:Emit(Origin, Direction, Data)
 
 		-- Delays the next droplet to be emitted
 		task.wait(DelayTime)
@@ -91,13 +90,18 @@ end
   This is useful when you want to control the emission
   loop externally.
 ]]
-function BloodEngine:Emit(Origin: Vector3 | BasePart, Direction: Vector3)
+function BloodEngine:Emit(Origin: Vector3 | BasePart, Direction: Vector3, Data: Settings.Class?)
 	-- Class definitions
 	local Engine: Operator.Class = self.ActiveEngine
 
 	-- Variable definitions
-	Origin = (Functions.IsOfType(Origin, "Vector3") and Origin or Origin.Position)
+	Origin = typeof(Origin) == "Instance" and Origin.Position or Origin
 	Direction = Direction or Functions.GetVector({ -10, 10 }) / 10
+
+	-- Change settings if data exists
+	if Data then
+		self:UpdateSettings(Data)
+	end
 
 	-- Emit a single droplet
 	Engine:Emit(Origin, Direction)
