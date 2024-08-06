@@ -1,6 +1,6 @@
 [package]
 name = "rotntake/blood-engine"
-version = "0.1.1"
+version = "0.1.2"
 realm = "shared"
 registry = "https://github.com/upliftgames/wally-index"
 licence = "MIT"
