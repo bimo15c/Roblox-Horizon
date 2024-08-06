@@ -1,6 +1,6 @@
 --[[
-  @ Writer: @Smileeiles
-  @ Version: v1.0.0
+  @ Writer: @Smileeiles/@etirean
+  @ Version: v1.1.0
   @ Description:
      A droplet emitter system,
      used to emit droplets from a specified origin point.
@@ -10,10 +10,6 @@
 
      This process can be customized to suit various needs and genres.
 ]]
-
--- Asset definitions
-local Assets = script.Assets
-local Models = Assets.Models
 
 -- Essential definitions
 local Operator = require(script.Operator)
@@ -32,13 +28,7 @@ BloodEngine.__index = BloodEngine
   including other properties/variables.
 ]]
 function BloodEngine.new(Data: Settings.Class)
-	local self = setmetatable({
-		Types = {
-			Default = Models.Droplet,
-			Decal = Models.Decal,
-		},
-	}, BloodEngine)
-
+	local self = setmetatable({}, BloodEngine)
 	return self, self:Initialize(Data)
 end
 
@@ -66,9 +56,10 @@ end
 function BloodEngine:EmitAmount(Origin: Vector3 | BasePart, Direction: Vector3, Amount: number, Data: Settings.Class?)
 	-- Class definitions
 	local Handler: Settings.Class = self.ActiveHandler
+	Data = Data or {}
 
 	-- Variable definitions
-	local DropletDelay = Handler.DropletDelay
+	local DropletDelay = Data.DropletDelay or Handler.DropletDelay
 
 	for _ = 1, Amount, 1 do
 		-- Define variables for later use
@@ -98,13 +89,8 @@ function BloodEngine:Emit(Origin: Vector3 | BasePart, Direction: Vector3, Data: 
 	Origin = typeof(Origin) == "Instance" and Origin.Position or Origin
 	Direction = Direction or Functions.GetVector({ -10, 10 }) / 10
 
-	-- Change settings if data exists
-	if Data then
-		self:UpdateSettings(Data)
-	end
-
 	-- Emit a single droplet
-	Engine:Emit(Origin, Direction)
+	Engine:Emit(Origin, Direction, Data)
 end
 
 --[[

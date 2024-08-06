@@ -12,6 +12,11 @@ local Assets = ParentClass.Assets
 -- Asset definitions
 local Images = Assets.Images
 local Essentials = Assets.Essentials
+local Effects = Assets.Effects
+
+-- Effect definitions
+local TrailEffects = Effects.Trail
+local ImpactEffects = Effects.Impact
 
 -- Essential definitions
 local FastCast = require(Essentials.FastCast)
@@ -94,6 +99,62 @@ function Functions.SetupBehavior(Cache, CastParams): FastCast.Behavior
 
 	-- Export behavior
 	return Behavior
+end
+
+--[[
+	Clones and parents Droplet effects from a template part.
+]]
+function Functions.CreateEffects(Parent: MeshPart, ImpactName: string)
+	-- Variable definitions
+	local Trail = TrailEffects:Clone()
+
+	local Attachment0 = Instance.new("Attachment")
+	local Attachment1 = Instance.new("Attachment")
+	local ImpactAttachment = Instance.new("Attachment")
+
+	-- Update Trail-related properties
+	Trail.Attachment0 = Attachment0
+	Trail.Attachment1 = Attachment1
+
+	Attachment1.Position = Vector3.new(0.037, 0, 0)
+	Attachment0.Name = "Attachment0"
+	Attachment1.Name = "Attachment1"
+
+	Attachment0.Parent = Parent
+	Attachment1.Parent = Parent
+	Trail.Parent = Parent
+
+	-- Update Impact-related properties
+	for _, Effect in ipairs(ImpactEffects:GetChildren()) do
+		local Clone = Effect:Clone()
+		Clone.Parent = ImpactAttachment
+	end
+
+	ImpactAttachment.Name = ImpactName
+	ImpactAttachment.Parent = Parent
+	ImpactAttachment.Orientation = Vector3.new(0, 0, 0)
+end
+
+--[[
+	Returns an empty object template that's going to be used as a droplet.
+]]
+function Functions.GetDroplet(ImpactName: string, IsDecal: boolean): {}
+	-- Variable definitions
+	local Droplet = Instance.new("MeshPart")
+
+	-- Update properties
+	Droplet.Size = Vector3.new(0.1, 0.1, 0.1)
+	Droplet.Transparency = 0.25
+	Droplet.Material = Enum.Material.Glass
+
+	Droplet.Anchored = false
+	Droplet.CanCollide = false
+	Droplet.CanQuery = false
+	Droplet.CanTouch = false
+
+	-- Export droplet
+	Functions.CreateEffects(Droplet, ImpactName)
+	return Droplet
 end
 
 --[[
@@ -268,13 +329,11 @@ end
 	Provides the target angles; utilized to
 	assign the orientation to base position or CFrame.
 ]]
-function Functions.GetAngles(IsDecal: boolean): CFrame
+function Functions.GetAngles(IsDecal: boolean, RandomAngles: boolean): CFrame
 	-- Variable definitions
 	local RandomAngle = Functions.NextNumber(0, 180)
-
 	local AngleX = (IsDecal and -math.pi / 2 or math.pi / 2)
-
-	local AngleY = (IsDecal and RandomAngle or 0)
+	local AngleY = (RandomAngles and RandomAngle or 0)
 
 	-- Export angles
 	return CFrame.Angles(AngleX, AngleY, 0)

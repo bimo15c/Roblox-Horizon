@@ -15,7 +15,7 @@ Settings.__index = Settings
 function Settings.new(Data: {})
 	local self = setmetatable({
 		FolderName = "Droplets", -- Specifies the name of the folder containing the droplets.
-		Type = "Default", -- Defines the droplet type. It can be either "Default" (Sphere) or "Decal",
+		Type = "Default", -- Defines the droplet type. It can be either "Default" (Sphere) or "Decal".
 		Limit = 500, -- Sets the maximum number of droplets that can be created.
 		Filter = {}, -- An array/table of instances that should be ignored during droplet collision.
 
@@ -26,7 +26,8 @@ function Settings.new(Data: {})
 
 		DropletDelay = { 0.01, 0.03 }, -- Sets the delay between emitting droplets in a loop (for the EmitAmount method).
 		DropletVelocity = { 1, 2 }, -- Controls the velocity of the emitted droplet.
-		DropletVisible = false, -- Determines if the droplet is visible upon emission
+		DropletVisible = false, -- Determines if the droplet is visible upon emission.
+		DropletColor = Color3.fromRGB(103, 0, 0), -- Determines the color of the emitted droplet.
 
 		RandomOffset = true, -- Determines whether a droplet should spawn at a random offset from a given position.
 		OffsetRange = { -5, 5 }, -- Specifies the offset range for the position vectors.
@@ -43,18 +44,18 @@ function Settings.new(Data: {})
 
 		Trail = true, -- Controls the visibility of the trail during droplet emission.
 		DecayDelay = { 10, 15 }, -- Sets the delay before the droplet decays and recycles
-		
+
 		-- Contains all the tweens used by the module
 		Tweens = {
-			Landed = TweenInfo.new(.5, Enum.EasingStyle.Cubic), -- Used for when a droplet has landed on a surface.
+			Landed = TweenInfo.new(0.5, Enum.EasingStyle.Cubic), -- Used for when a droplet has landed on a surface.
 			Decay = TweenInfo.new(1, Enum.EasingStyle.Cubic), -- Used for when a droplet is decaying.
-			Expand = TweenInfo.new(.5, Enum.EasingStyle.Cubic) -- Used for when a droplet is expanding (Pool Expansion).
-		}
+			Expand = TweenInfo.new(0.5, Enum.EasingStyle.Cubic), -- Used for when a droplet is expanding (Pool Expansion).
+		},
 	}, Settings)
 
 	-- Fill the default settings with values from the Data array
 	for Setting, Value in Data do
-		if (Setting == "Tweens") then
+		if Setting == "Tweens" then
 			for Tween, Info in Value do
 				self.Tweens[Tween] = Info
 			end
@@ -102,8 +103,6 @@ function Settings:CreateParams()
 end
 
 -- Exports the class and its type
-export type Class = typeof(
-	Settings.new(...)
-)
+export type Class = typeof(Settings.new(...))
 
 return Settings

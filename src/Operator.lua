@@ -12,6 +12,7 @@ local Assets = ParentClass.Assets
 -- Asset definitions
 local Sounds = Assets.Sounds
 local Essentials = Assets.Essentials
+local Meshes = Assets.Meshes
 
 -- Sound definitions
 local EndFolder = Sounds.End:GetChildren()
@@ -26,6 +27,15 @@ local FastCast = require(Essentials.FastCast)
 -- Globals
 local Unpack = table.unpack
 
+-- Constants definition
+local TypeAttribute = "Type"
+local DecayAttribute = "Decaying"
+local ExpandAttribute = "Expanding"
+local MeshMap = {
+	Default = Meshes.Droplet,
+	Decal = Meshes.Decal,
+}
+
 -- Class definition
 local Operator = {}
 Operator.__index = Operator
@@ -37,7 +47,6 @@ Operator.__index = Operator
 function Operator.new(Class)
 	local self = setmetatable({
 		Handler = Class.ActiveHandler,
-		Types = Class.Types,
 	}, Operator)
 
 	return self, self:Initialize(), self:InitializeCast()
@@ -51,21 +60,20 @@ function Operator:Initialize()
 	-- Variable definitions
 	local Handler: Settings.Class = self.Handler
 	local FolderName: string = Handler.FolderName
-	local Types: {} = self.Types
 
 	-- Essential definitions
-	local Type = Handler.Type
 	local Limit = Handler.Limit
 	local CastParams = Handler.RaycastParams
 
 	local Folder = Functions.GetFolder(FolderName)
-	local Object = Types[Type]:Clone()
+	local Object = Functions.GetDroplet(Handler.SplashName)
 
 	-- Class definitions
 	local Cache = PartCache.new(Object, Limit, Folder)
 
 	-- Insert variables
 	Functions.MultiInsert(self, {
+		Registry = {},
 		Droplet = Object,
 		Cache = Cache,
 		Container = Folder,
@@ -93,10 +101,6 @@ function Operator:InitializeCast()
 	local LengthChanged = Caster.LengthChanged
 	local RayHit = Caster.RayHit
 
-	-- Info definitions
-	local Tweens = Handler.Tweens
-	local Landed = Tweens.Landed
-
 	-- Caster Listeners
 	LengthChanged:Connect(function(_, Origin, Direction, Length, _, Object: BasePart)
 		if not Object then
@@ -121,11 +125,12 @@ function Operator:InitializeCast()
 		end
 
 		-- Options definitions
-		local Size = Handler.StartingSize
-		local SizeRange = Handler.DefaultSize
-		local Distance = Handler.Distance
-		local Expansion = Handler.Expansion
-		local IsDecal = Handler.Type == "Decal"
+		local RegistryData = self.Registry[Object] or Handler
+		local Size = RegistryData.StartingSize
+		local SizeRange = RegistryData.DefaultSize
+		local Distance = RegistryData.Distance
+		local Expansion = RegistryData.Expansion
+		local IsDecal = RegistryData.Type == "Decal"
 
 		-- Variable definitions
 		local CastInstance = RaycastResult.Instance
@@ -135,7 +140,7 @@ function Operator:InitializeCast()
 		local VectorSize = Functions.GetVector(SizeRange)
 		local GoalSize = Functions.RefineVectors(IsDecal, Vector3.new(VectorSize.X, VectorSize.Y / 4, VectorSize.X))
 
-		local GoalAngles = Functions.GetAngles(IsDecal)
+		local GoalAngles = Functions.GetAngles(IsDecal, IsDecal)
 		local GoalCFrame = Functions.GetCFrame(Position, Normal, IsDecal) * GoalAngles
 
 		local ClosestPart = Functions.GetClosest(Object, Distance, Container)
@@ -143,12 +148,17 @@ function Operator:InitializeCast()
 		local ExpansionLogic = (
 			Expansion
 			and ClosestPart
-			and (not ClosestPart:GetAttribute("Decaying") and not ClosestPart:GetAttribute("Expanding"))
+			and not ClosestPart:GetAttribute(DecayAttribute)
+			and not ClosestPart:GetAttribute(ExpandAttribute)
+			and ClosestPart:GetAttribute(TypeAttribute) == RegistryData.Type
 		)
 
-		-- Evaluates if the droplet is close to another pool
+		-- Clear the registry entry
+		self.Registry[Object] = nil
+
+		-- Evaluates if the droplet is close to another pool, if so, expand.
 		if ExpansionLogic then
-			self:Expanse(Object, ClosestPart, Velocity, GoalSize)
+			self:Expanse(Object, ClosestPart, Velocity, GoalSize, RegistryData)
 			return nil
 		end
 
@@ -156,17 +166,17 @@ function Operator:InitializeCast()
 		Object.Anchored = true
 		Object.Size = Size
 		Object.CFrame = GoalCFrame
-		Object.Transparency = Functions.NextNumber(Unpack(Handler.DefaultTransparency))
+		Object.Transparency = Functions.NextNumber(Unpack(RegistryData.DefaultTransparency))
 
 		--[[
-      Transitions the droplet into a pool,
-      then handles its later functionality.
-       (Decay, Sounds, etc...)
-    ]]
-		Functions.CreateTween(Object, Landed, { Size = GoalSize }):Play()
+     		Transitions the droplet into a pool,
+      		then handles its later functionality.
+        	(Decay, Sounds, etc...)
+    	]]
+		Functions.CreateTween(Object, RegistryData.Tweens.Landed, { Size = GoalSize }):Play()
 
-		self:HandleDroplet(Object)
-		self:HitEffects(Object, Velocity)
+		self:HandleDroplet(Object, RegistryData)
+		self:HitEffects(Object, Velocity, RegistryData)
 		Functions.Weld(CastInstance, Object)
 
 		return nil
@@ -177,24 +187,27 @@ end
   Emitter, emits a certain amount of droplets,
   at a certain point of origin, with a certain given direction.
 ]]
-function Operator:Emit(Origin: Vector3, Direction: Vector3)
+function Operator:Emit(Origin: Vector3, Direction: Vector3, Data: Settings.Class?)
 	-- Class definitions
 	local Caster: FastCast.Class = self.Caster
 	local Behavior: FastCast.Behavior = self.Behavior
 	local Cache: PartCache.Class = self.Cache
 	local Handler: Settings.Class = self.Handler
 
+	local Clone = table.clone(Handler)
+	Clone:UpdateSettings(Data)
+	Data = Clone
+
 	-- Variable definitions
-	local DropletVelocity = Handler.DropletVelocity
+	local DropletVelocity = Data.DropletVelocity
 	local Velocity = Functions.NextNumber(Unpack(DropletVelocity)) * 10
 
-	local RandomOffset = Handler.RandomOffset
-	local OffsetRange = Handler.OffsetRange
+	local RandomOffset = Data.RandomOffset
+	local OffsetRange = Data.OffsetRange
 	local Position = Functions.GetVector(OffsetRange) / 10
 
 	-- Final definitions
 	local FinalPosition = Origin + Vector3.new(Position.X, 0, Position.Z)
-
 	local FinalStart = (RandomOffset and FinalPosition or Origin)
 
 	if #Cache.Open <= 0 then
@@ -205,10 +218,20 @@ function Operator:Emit(Origin: Vector3, Direction: Vector3)
 	local ActiveDroplet = Caster:Fire(FinalStart, Direction, Velocity, Behavior)
 
 	local RayInfo = ActiveDroplet.RayInfo
-	local Droplet: Instance = RayInfo.CosmeticBulletObject
+	local Droplet: MeshPart = RayInfo.CosmeticBulletObject
+
+	-- Update the mesh's look and color
+	Droplet:ApplyMesh(MeshMap[Data.Type])
+	Droplet.Color = Data.DropletColor
+
+	-- Assign the registry entry and update the attributes
+	self.Registry[Droplet] = Data
+	Droplet:SetAttribute(TypeAttribute, Data.Type)
+	Droplet:SetAttribute(DecayAttribute, false)
+	Droplet:SetAttribute(ExpandAttribute, false)
 
 	-- Execute essential functions
-	self:UpdateDroplet(Droplet)
+	self:UpdateDroplet(Droplet, Data)
 	Functions.PlaySound(Functions.GetRandom(StartFolder), Droplet)
 end
 
@@ -216,14 +239,11 @@ end
   A small function, designed to update the properties
   of a recently emitted droplet.
 ]]
-function Operator:UpdateDroplet(Object: BasePart)
-	-- Class definitions
-	local Handler: Settings.Class = self.Handler
-
+function Operator:UpdateDroplet(Object: BasePart, Data: Settings.Class)
 	-- Variable definitions
-	local DropletTrail = Handler.Trail
-	local DropletVisible = Handler.DropletVisible
-	local IsDecal = Handler.Type == "Decal"
+	local DropletTrail = Data.Trail
+	local DropletVisible = Data.DropletVisible
+	local IsDecal = Data.Type == "Decal"
 
 	-- Object definitions
 	local Trail = Object:FindFirstChildOfClass("Trail")
@@ -240,21 +260,18 @@ end
   Handles the given droplet/object after
   it landed on a surface.
 ]]
-function Operator:HandleDroplet(Object: BasePart)
-	-- Class definitions
-	local Handler: Settings.Class = self.Handler
-
+function Operator:HandleDroplet(Object: BasePart, Data: Settings.Class)
 	-- Object definitions
 	local Trail = Object:FindFirstChildOfClass("Trail")
 
 	-- Variable definitions
-	local Tweens = Handler.Tweens
-	local DecayDelay = Handler.DecayDelay
+	local Tweens = Data.Tweens
+	local DecayDelay = Data.DecayDelay
 
 	local DecayInfo = Tweens.Decay
 	local DecayTime = Functions.NextNumber(Unpack(DecayDelay))
 
-	local ScaleDown = Handler.ScaleDown
+	local ScaleDown = Data.ScaleDown
 	local FinalSize = ScaleDown and Vector3.new(0.01, 0.01, 0.01) or Object.Size
 
 	-- Tween definitions
@@ -281,22 +298,21 @@ end
   HitEffects, a sequence of effects to enhance
   the visuals of the droplet->pool
 ]]
-function Operator:HitEffects(Object, Velocity: Vector3)
-	-- Class definitions
-	local Handler: Settings.Class = self.Handler
-
+function Operator:HitEffects(Object, Velocity: Vector3, Data: Settings.Class)
 	-- Variable definitions
-	local SplashName = Handler.SplashName
-	local SplashAmount = Handler.SplashAmount
-	local SplashByVelocity = Handler.SplashByVelocity
-	local Divider = Handler.VelocityDivider
+	local SplashName = Data.SplashName
+	local SplashAmount = Data.SplashAmount
+	local SplashByVelocity = Data.SplashByVelocity
+	local Divider = Data.VelocityDivider
+	local IsDecal = Data.Type == "Decal"
 
 	local Magnitude = Velocity.Magnitude
 	local FinalVelocity = Magnitude / Divider
 	local FinalAmount = (SplashByVelocity and FinalVelocity or Functions.NextNumber(Unpack(SplashAmount)))
-	local Splash = Object:FindFirstChild(SplashName)
+	local Splash: Attachment = Object:FindFirstChild(SplashName)
 
 	-- Execute essential functions
+	Splash.Orientation = Vector3.new(0, 0, IsDecal and 0 or 180)
 	Functions.PlaySound(Functions.GetRandom(EndFolder), Object)
 	Functions.EmitParticles(Splash, FinalAmount)
 end
@@ -310,17 +326,20 @@ end
 	a threshold, then triggers changes
 	on the droplet & pool.
 ]]
-function Operator:Expanse(Object: BasePart, ClosestPart: BasePart, Velocity: Vector3, Size: Vector3)
-	-- Self definitions
-	local Handler: Settings.Class = self.Handler
-
+function Operator:Expanse(
+	Object: BasePart,
+	ClosestPart: BasePart,
+	Velocity: Vector3,
+	Size: Vector3,
+	Data: Settings.Class
+)
 	-- Variable definitions
-	local Divider = Handler.ExpanseDivider
-	local MaximumSize = Handler.MaximumSize
-	local IsDecal = Handler.Type == "Decal"
+	local Divider = Data.ExpanseDivider
+	local MaximumSize = Data.MaximumSize
+	local IsDecal = Data.Type == "Decal"
 
 	-- Info definitions
-	local Tweens = Handler.Tweens
+	local Tweens = Data.Tweens
 	local Expand = Tweens.Expand
 
 	-- Value definitions
