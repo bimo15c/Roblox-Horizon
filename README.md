@@ -9,7 +9,7 @@
 <div align="center">
 
 
-v1.0.0 • [Model](https://create.roblox.com/marketplace/asset/15420466379/) • [Devforum](https://devforum.roblox.com/t/blood-engine-a-droplet-emitter-system/2545682)
+v1.0.3 • [Model](https://create.roblox.com/marketplace/asset/15420466379/) • [Devforum](https://devforum.roblox.com/t/blood-engine-a-droplet-emitter-system/2545682)
 
 </div>
 
@@ -19,6 +19,13 @@ Blood Engine is a versatile resource that can be utilized for various applicatio
 One of its key features is the ability to emit "droplets" - these are meshes that can take on the appearance of "Decals" or "Spheres". These droplets can be emitted from any given origin point with a given velocity. Upon landing on a surface, such as a wall or floor, they transform into a pool.
 
 This entire process is highly customizable, with 24 options at your disposal to tweak and adjust according to your requirements. This ensures that Blood Engine can adapt to a wide range of scenarios and use-cases, providing you with the flexibility to create the exact effect you're aiming for.
+
+## Installation
+You can install Blood Engine through the latest release of the repository, the [Model](https://create.roblox.com/marketplace/asset/15420466379/) published on Roblox, or by using Wally:
+```toml
+[dependencies]
+bloodEngine = "rotntake/blood-engine@0.1.2"
+```
 
 ## Usage
 #### Initialization
