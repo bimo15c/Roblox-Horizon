@@ -20,6 +20,13 @@ One of its key features is the ability to emit "droplets" - these are meshes tha
 
 This entire process is highly customizable, with 24 options at your disposal to tweak and adjust according to your requirements. This ensures that Blood Engine can adapt to a wide range of scenarios and use-cases, providing you with the flexibility to create the exact effect you're aiming for.
 
+## Installation
+You can install Blood Engine through the latest release of the repository, or the [Model](https://create.roblox.com/marketplace/asset/15420466379/) published on Roblox, or by using Wally:
+```toml
+[dependencies]
+bloodEngine = "rotntake/blood-engine@0.1.2"
+```
+
 ## Usage
 #### Initialization
 Firstly, you'll need to initialize BloodEngine with your preferred settings. This can be done in either a client or server script. However, it's generally more advisable to do this on the client side, so we'll proceed with that approach. 
