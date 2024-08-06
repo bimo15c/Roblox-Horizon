@@ -1,0 +1,6 @@
+{
+	"name": "Blood Engine",
+	"tree": {
+		"$path": "src"
+	}
+}
