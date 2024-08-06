@@ -1,5 +1,5 @@
 [package]
-name = "rotntake/BloodEngine"
+name = "rotntake/blood-engine"
 version = "0.1.0"
 realm = "shared"
 registry = "https://github.com/upliftgames/wally-index"
