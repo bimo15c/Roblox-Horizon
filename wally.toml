@@ -3,7 +3,7 @@ name = "rotntake/blood-engine"
 version = "0.1.1"
 realm = "shared"
 registry = "https://github.com/upliftgames/wally-index"
-licence = "Unlicense"
+licence = "MIT"
 authors = ["rotntake"]
 
 description = "A droplet emitter system."
