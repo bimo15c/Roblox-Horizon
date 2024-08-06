@@ -1,0 +1,16 @@
+[package]
+name = "rotntake/blood-engine"
+version = "0.1.0"
+realm = "shared"
+registry = "https://github.com/upliftgames/wally-index"
+licence = "Unlicense"
+authors = ["rotntake"]
+
+description = "A droplet emitter system."
+
+exclude = ["**"]
+include = ["src", "src/*", "default.project.json", "wally.toml"]
+
+[dev-dependencies]
+
+[dependencies]
