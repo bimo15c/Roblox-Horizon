@@ -194,8 +194,9 @@ function Operator:Emit(Origin: Vector3, Direction: Vector3, Data: Settings.Class
 	local Cache: PartCache.Class = self.Cache
 	local Handler: Settings.Class = self.Handler
 
+	-- Create a clone of the default settings, and apply specific settings if provided
 	local Clone = table.clone(Handler)
-	Clone:UpdateSettings(Data)
+	Clone:UpdateSettings(Data or {})
 	Data = Clone
 
 	-- Variable definitions
