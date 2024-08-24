@@ -107,19 +107,19 @@ end
 function Functions.CreateEffects(Parent: MeshPart, ImpactName: string)
 	-- Variable definitions
 	local Trail = TrailEffects:Clone()
-
+	
 	local Attachment0 = Instance.new("Attachment")
 	local Attachment1 = Instance.new("Attachment")
 	local ImpactAttachment = Instance.new("Attachment")
-
+	
 	-- Update Trail-related properties
 	Trail.Attachment0 = Attachment0
 	Trail.Attachment1 = Attachment1
-
+	
 	Attachment1.Position = Vector3.new(0.037, 0, 0)
 	Attachment0.Name = "Attachment0"
 	Attachment1.Name = "Attachment1"
-
+	
 	Attachment0.Parent = Parent
 	Attachment1.Parent = Parent
 	Trail.Parent = Parent
@@ -129,7 +129,7 @@ function Functions.CreateEffects(Parent: MeshPart, ImpactName: string)
 		local Clone = Effect:Clone()
 		Clone.Parent = ImpactAttachment
 	end
-
+	
 	ImpactAttachment.Name = ImpactName
 	ImpactAttachment.Parent = Parent
 	ImpactAttachment.Orientation = Vector3.new(0, 0, 0)
@@ -141,17 +141,17 @@ end
 function Functions.GetDroplet(ImpactName: string, IsDecal: boolean): {}
 	-- Variable definitions
 	local Droplet = Instance.new("MeshPart")
-
+	
 	-- Update properties
 	Droplet.Size = Vector3.new(0.1, 0.1, 0.1)
 	Droplet.Transparency = 0.25
 	Droplet.Material = Enum.Material.Glass
-
+	
 	Droplet.Anchored = false
 	Droplet.CanCollide = false
 	Droplet.CanQuery = false
 	Droplet.CanTouch = false
-
+	
 	-- Export droplet
 	Functions.CreateEffects(Droplet, ImpactName)
 	return Droplet
@@ -385,6 +385,34 @@ function Functions.Weld(Part0: BasePart, Part1: BasePart): WeldConstraint
 
 	-- Export weld
 	return Weld
+end
+
+--[[
+	Adds a connection to a table that holds connections.
+]]
+function Functions.Connect(Connection: RBXScriptConnection, Holder: { RBXScriptConnection })
+	-- Update table
+	table.insert(Holder, Connection)
+end
+
+--[[
+	Destroys and disconnects all the connections 
+	in a table that holds connections.
+]]
+function Functions.DisconnectAll(Holder: { RBXScriptConnection })
+	-- Disconnect and destroy connections in Holder
+	for Index, Connection: RBXScriptConnection in Holder do
+		Connection:Disconnect()
+		Holder[Index] = nil
+	end
+end
+
+--[[
+	Basic function used to replace the initial module methods,
+	therefore avoiding errors after deletion of the module.
+]]
+function Functions.Replacement()
+	warn("BLOOD-ENGINE - Attempt to call a deleted function.")
 end
 
 return Functions
