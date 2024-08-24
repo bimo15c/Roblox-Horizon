@@ -1,6 +1,6 @@
 --[[
-  @ Writer: @Smileeiles/@etirean
-  @ Version: v1.1.1
+  @ Writer: @Smileeiles
+  @ Version: v1.1.2
   @ Description:
      A droplet emitter system,
      used to emit droplets from a specified origin point.
@@ -56,10 +56,9 @@ end
 function BloodEngine:EmitAmount(Origin: Vector3 | BasePart, Direction: Vector3, Amount: number, Data: Settings.Class?)
 	-- Class definitions
 	local Handler: Settings.Class = self.ActiveHandler
-	Data = Data or {}
 
 	-- Variable definitions
-	local DropletDelay = Data.DropletDelay or Handler.DropletDelay
+	local DropletDelay = Handler.DropletDelay
 
 	for _ = 1, Amount, 1 do
 		-- Define variables for later use
@@ -121,6 +120,32 @@ function BloodEngine:UpdateSettings(Data: Settings.Class)
 
 	-- Update the settings
 	Handler:UpdateSettings(Data)
+end
+
+--[[
+	Destroy, destroys anything associated 
+	with the settings/handler and the operator/engine.
+	
+	Use this function when there is no longer a use
+	for the created engine. (Like when a character dies, etc.)
+]]
+function BloodEngine:Destroy()
+	-- Class definitions
+	local Handler: Settings.Class = self.ActiveHandler
+	local Engine: Operator.Class = self.ActiveEngine
+	local Meta = getmetatable(self)
+	
+	-- Destroy the handler & engine
+	self.Handler = nil
+	Engine:Destroy()
+	self.Engine = nil
+	
+	-- Nullify/replace all the Engine methods
+	self.UpdateSettings = Functions.Replacement
+	self.GetSettings = Functions.Replacement
+	
+	self.EmitAmount = Functions.Replacement
+	self.Emit = Functions.Replacement
 end
 
 -- Exports the class
