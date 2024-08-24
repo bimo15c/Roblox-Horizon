@@ -133,7 +133,6 @@ function BloodEngine:Destroy()
 	-- Class definitions
 	local Handler: Settings.Class = self.ActiveHandler
 	local Engine: Operator.Class = self.ActiveEngine
-	local Meta = getmetatable(self)
 	
 	-- Destroy the handler & engine
 	self.Handler = nil
