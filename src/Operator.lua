@@ -36,6 +36,9 @@ local MeshMap = {
 	Decal = Meshes.Decal,
 }
 
+-- Type definitions
+type Connections = { RBXScriptConnection }
+
 -- Class definition
 local Operator = {}
 Operator.__index = Operator
@@ -62,6 +65,7 @@ function Operator:Initialize()
 	local FolderName: string = Handler.FolderName
 
 	-- Essential definitions
+	local Type = Handler.Type
 	local Limit = Handler.Limit
 	local CastParams = Handler.RaycastParams
 
@@ -70,10 +74,12 @@ function Operator:Initialize()
 
 	-- Class definitions
 	local Cache = PartCache.new(Object, Limit, Folder)
-
+	
 	-- Insert variables
 	Functions.MultiInsert(self, {
 		Registry = {},
+		Connections = {},
+		
 		Droplet = Object,
 		Cache = Cache,
 		Container = Folder,
@@ -93,6 +99,7 @@ end
 ]]
 function Operator:InitializeCast()
 	-- Self definitions
+	local Connections: Connections = self.Connections
 	local Caster: FastCast.Class = self.Caster
 	local Handler: Settings.Class = self.Handler
 	local Container: Folder = self.Container
@@ -102,7 +109,7 @@ function Operator:InitializeCast()
 	local RayHit = Caster.RayHit
 
 	-- Caster Listeners
-	LengthChanged:Connect(function(_, Origin, Direction, Length, _, Object: BasePart)
+	Functions.Connect(LengthChanged:Connect(function(_, Origin, Direction, Length, _, Object: BasePart)
 		if not Object then
 			return
 		end
@@ -117,9 +124,9 @@ function Operator:InitializeCast()
 
 		-- Update properties
 		Object.CFrame = GoalCFrame
-	end)
-
-	RayHit:Connect(function(_, RaycastResult: RaycastResult, Velocity, Object: BasePart?)
+	end), Connections)
+	
+	Functions.Connect(RayHit:Connect(function(_, RaycastResult: RaycastResult, Velocity, Object: BasePart?)
 		if not Object then
 			return nil
 		end
@@ -147,10 +154,10 @@ function Operator:InitializeCast()
 
 		local ExpansionLogic = (
 			Expansion
-			and ClosestPart
-			and not ClosestPart:GetAttribute(DecayAttribute)
-			and not ClosestPart:GetAttribute(ExpandAttribute)
-			and ClosestPart:GetAttribute(TypeAttribute) == RegistryData.Type
+				and ClosestPart
+				and not ClosestPart:GetAttribute(DecayAttribute)
+				and not ClosestPart:GetAttribute(ExpandAttribute)
+				and ClosestPart:GetAttribute(TypeAttribute) == RegistryData.Type
 		)
 
 		-- Clear the registry entry
@@ -180,7 +187,37 @@ function Operator:InitializeCast()
 		Functions.Weld(CastInstance, Object)
 
 		return nil
-	end)
+	end), Connections)
+end
+
+--[[
+	Destroys PartCache, FastCast, 
+	and all the droplets associated with this engine/operator.
+]]
+function Operator:Destroy()
+	-- Self definitions
+	local Connections: Connections = self.Connections
+	local Cache: PartCache.Class = self.Cache
+	local Caster: FastCast.Class = self.Caster
+	local Container: Folder = self.Container
+	
+	-- Destroy classes
+	Cache:Dispose()
+	table.clear(Caster)
+	
+	Functions.DisconnectAll(Connections)
+	table.clone(Connections)
+	
+	-- Destroy main container
+	if Container then
+		Container:Destroy()
+	end
+	
+	-- Null everything, making the operator unusable
+	self.Connections = nil
+	self.Container = nil
+	self.Cache = nil
+	self.Caster = nil
 end
 
 --[[
@@ -193,13 +230,14 @@ function Operator:Emit(Origin: Vector3, Direction: Vector3, Data: Settings.Class
 	local Behavior: FastCast.Behavior = self.Behavior
 	local Cache: PartCache.Class = self.Cache
 	local Handler: Settings.Class = self.Handler
-
+	
 	-- Create a clone of the default settings, and apply specific settings if provided
 	local Clone = table.clone(Handler)
 	Clone:UpdateSettings(Data or {})
 	Data = Clone
 
 	-- Variable definitions
+	local IsDecal = Data.Type == "Decal"
 	local DropletVelocity = Data.DropletVelocity
 	local Velocity = Functions.NextNumber(Unpack(DropletVelocity)) * 10
 
@@ -220,17 +258,17 @@ function Operator:Emit(Origin: Vector3, Direction: Vector3, Data: Settings.Class
 
 	local RayInfo = ActiveDroplet.RayInfo
 	local Droplet: MeshPart = RayInfo.CosmeticBulletObject
-
+	
 	-- Update the mesh's look and color
 	Droplet:ApplyMesh(MeshMap[Data.Type])
 	Droplet.Color = Data.DropletColor
-
+	
 	-- Assign the registry entry and update the attributes
 	self.Registry[Droplet] = Data
 	Droplet:SetAttribute(TypeAttribute, Data.Type)
 	Droplet:SetAttribute(DecayAttribute, false)
 	Droplet:SetAttribute(ExpandAttribute, false)
-
+	
 	-- Execute essential functions
 	self:UpdateDroplet(Droplet, Data)
 	Functions.PlaySound(Functions.GetRandom(StartFolder), Droplet)
@@ -330,8 +368,8 @@ end
 function Operator:Expanse(
 	Object: BasePart,
 	ClosestPart: BasePart,
-	Velocity: Vector3,
-	Size: Vector3,
+	Velocity: Vector3, 
+	Size: Vector3, 
 	Data: Settings.Class
 )
 	-- Variable definitions
