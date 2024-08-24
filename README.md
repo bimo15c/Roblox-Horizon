@@ -24,7 +24,7 @@ This entire process is highly customizable, with 24 options at your disposal to 
 You can install Blood Engine through the latest release of the repository, the [Model](https://create.roblox.com/marketplace/asset/15420466379/) published on Roblox, or by using Wally:
 ```toml
 [dependencies]
-BloodEngine = "rotntake/blood-engine@0.1.2"
+BloodEngine = "rotntake/blood-engine@1.1.2"
 ```
 
 ## Usage
